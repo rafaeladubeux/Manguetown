@@ -5,31 +5,35 @@
 
 LiquidCrystal_I2C lcd(0x27, 16, 2); 
 
-#define pinRX 50
-#define pinTX 53
+// --- CONFIGURAÇÃO DO DFPLAYER MINI (Atualizado para pinos 50 e 53) ---
+#define pinRX 50  // Conecta no TX do DFPlayer através de um resistor de 1k
+#define pinTX 53  // Conecta no RX do DFPlayer
 
 SoftwareSerial serialMP3(pinRX, pinTX);
 DFRobotDFPlayerMini moduloMP3;
 
-const int BTN[4] = {4, 10, 8, 12};
-const int LED_BOTOES[4] = {5, 9, 7, 11}; 
+// --- REORGANIZADO PARA: Vermelho, Verde, Amarelo, Azul ---
+const int BTN[4] = {4, 8, 10, 12};          // Vermelho (4), Verde (8), Amarelo (10), Azul (12)
+const int LED_BOTOES[4] = {5, 7, 9, 11};    // Vermelho (5), Verde (7), Amarelo (9), Azul (11)
 
+// Matriz de LEDs de Vida: [Jogador][LED 1, LED 2, LED 3]
 const int LED_VIDAS[4][3] = {
-  {22, 24, 26},
-  {28, 30, 32},
-  {31, 33, 35},
-  {36, 37, 38}
+  {22, 24, 26},   // Jogador 0 (Vermelho) - Pinos dos 3 LEDs
+  {31, 33, 35},   // Jogador 1 (Verde)    - Pinos dos 3 LEDs
+  {28, 30, 32},   // Jogador 2 (Amarelo)  - Pinos dos 3 LEDs
+  {40, 37, 38}    // Jogador 3 (Azul)     - Pinos dos 3 LEDs
 };
 
 const int BTN_BATALHA = 2; 
 
-const String cores[4] = {"Vermelho", "Amarelo", "Verde", "Azul"};
+// Nomes reordenados para bater com os índices acima
+const String cores[4] = {"Vermelho", "Verde", "Amarelo", "Azul"};
 
 int jogadorDaVez = 0;  
 int faseJogada = 0;    
 int resultadoDado = 0;
 
-int vidas[4] = {3, 3, 3, 3};
+int vidas[4] = {3, 3, 3, 3}; // Todos começam com 3 vidas (3 LEDs acesos)
 int contadorJogadas = 0;     
 int limiteJogadasBatalha = 0;
 
@@ -42,7 +46,7 @@ void printRetorno(uint8_t type, int value);
 
 void setup() {
   Serial.begin(9600);
-  serialMP3.begin(9600);
+  serialMP3.begin(9600); // Inicializa a serial do MP3
   
   Serial.println("--- Jogo Iniciado ---");
 
@@ -57,13 +61,14 @@ void setup() {
     Serial.println("Falha ao iniciar DFPlayer.");
   } else {
     Serial.println("DFPlayer Online.");
-    moduloMP3.volume(30);
-    moduloMP3.EQ(DFPLAYER_EQ_NORMAL);
+    moduloMP3.volume(30);              // Configura o volume (0 a 30)
+    moduloMP3.EQ(DFPLAYER_EQ_NORMAL); // Configura o equalizador
     
-    moduloMP3.playFolder(1, 0); 
+    // Som de introdução/abertura (Pasta 1, Arquivo 01)
+    moduloMP3.playFolder(1, 1); 
   }
 
-  delay(4000);
+  delay(75000);
 
   randomSeed(analogRead(0));
   
@@ -73,6 +78,7 @@ void setup() {
     digitalWrite(LED_BOTOES[i], LOW);
   }
 
+  // Inicializa todos os pinos de LEDs de vida como SAÍDA
   for (int j = 0; j < 4; j++) {
     for (int v = 0; v < 3; v++) {
       pinMode(LED_VIDAS[j][v], OUTPUT);
@@ -82,13 +88,14 @@ void setup() {
   pinMode(BTN_BATALHA, INPUT_PULLUP);
   limiteJogadasBatalha = random(3, 7); 
 
-  atualizarTodosOsLEDsDeVida();
+  atualizarTodosOsLEDsDeVida(); // Liga os 3 LEDs de todo mundo no início
   atualizarPainelELEDs();
 }
 
 void loop() {
   int jogadorAtual = jogadorDaVez;
 
+  // Se o jogador da vez não tiver mais vida, passa para o próximo ativo
   if (vidas[jogadorAtual] <= 0) {
     do {
       jogadorDaVez = (jogadorDaVez + 1) % 4;
@@ -150,20 +157,23 @@ void executarBatalhaAleatoria() {
   lcd.print(" !! HORA DA !!");
   lcd.setCursor(0, 1);
   lcd.print(" !! BATALHA !!");
-  delay(2000);
+  delay(4000);
 
   int p1 = -1;
   int p2 = -1;
 
+  // Sorteia dois jogadores que ainda tenham vidas
   do { p1 = random(0, 4); } while (vidas[p1] <= 0);
   do { p2 = random(0, 4); } while (vidas[p2] <= 0 || p2 == p1);
 
+  // Desliga temporariamente indicadores de botões para focar na batalha
   for (int j = 0; j < 4; j++) {
     digitalWrite(LED_BOTOES[j], LOW);
   }
 
   atualizarTodosOsLEDsDeVida();
 
+  // Acende os botões dos envolvidos para avisar o duelo
   digitalWrite(LED_BOTOES[p1], HIGH);
   digitalWrite(LED_BOTOES[p2], HIGH);
 
@@ -175,15 +185,17 @@ void executarBatalhaAleatoria() {
   delay(3000);
 
   int valorD20 = 1;
-unsigned long tempoGiro = 0;
-int duelistaDaVez = p1;
-bool flagInterrompido = false;
-bool dadoTravado = false;
+  unsigned long tempoGiro = 0;
+  int duelistaDaVez = p1;
+  bool flagInterrompido = false;
+  bool dadoTravado = false;
 
-lcd.clear();
+  lcd.clear();
 
-while (true) {
+  // --- LOOP DO D20 ROTATIVO E ALTERNADO ---
+  while (true) {
 
+    // D20 fica girando sozinho enquanto não estiver travado
     if (!dadoTravado && millis() - tempoGiro > 80) {
       valorD20 = random(1, 21);
       tempoGiro = millis();
@@ -195,6 +207,7 @@ while (true) {
     lcd.setCursor(0, 1);
     lcd.print("Resultado: " + String(valorD20) + "   ");
 
+    // Se qualquer botão colorido for apertado, inicia a fase de reflexo
     if (digitalRead(BTN[0]) == LOW ||
         digitalRead(BTN[1]) == LOW ||
         digitalRead(BTN[2]) == LOW ||
@@ -204,6 +217,7 @@ while (true) {
       break;
     }
 
+    // Botão batalha
     if (digitalRead(BTN_BATALHA) == LOW) {
 
       delay(50);
@@ -212,6 +226,7 @@ while (true) {
         delay(10);
       }
 
+      // Primeiro clique trava o dado
       if (!dadoTravado) {
 
         dadoTravado = true;
@@ -220,6 +235,7 @@ while (true) {
         lcd.print("Resultado: " + String(valorD20) + "   ");
 
       } 
+      // Segundo clique passa a vez
       else {
 
         dadoTravado = false;
@@ -237,21 +253,25 @@ while (true) {
 
       delay(250);
     }
-}
+  }
 
+  // Delay de transição seguro
   delay(200);
 
+  // --- FASE DE REFLEXO E VELOCIDADE ---
   int perdedor = -1;
 
   while (true) {
-    if (digitalRead(BTN[p1]) == LOW) { perdedor = p2; break; }
-    if (digitalRead(BTN[p2]) == LOW) { perdedor = p1; break; }
+    if (digitalRead(BTN[p1]) == LOW) { perdedor = p2; break; } 
+    if (digitalRead(BTN[p2]) == LOW) { perdedor = p1; break; } 
     delay(10);
   }
 
+  // Desliga os indicadores dos botões
   digitalWrite(LED_BOTOES[p1], LOW);
   digitalWrite(LED_BOTOES[p2], LOW);
 
+  // --- EXECUTA A PENALIDADE DE VIDA ---
   vidas[perdedor]--; 
   atualizarTodosOsLEDsDeVida(); 
 
@@ -261,7 +281,8 @@ while (true) {
   lcd.setCursor(0, 1);
   lcd.print("Vida: -1");
   Serial.println(cores[perdedor] + " perdeu 1 vida. Restam: " + String(vidas[perdedor]));
- 
+  
+  // Animação de erro/derrota do perdedor
   for(int i = 0; i < 4; i++) {
     digitalWrite(LED_BOTOES[perdedor], HIGH);
     for (int v = 0; v < 3; v++) {
