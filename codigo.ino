@@ -64,7 +64,7 @@ void setup() {
     moduloMP3.volume(30);              // Configura o volume (0 a 30)
     moduloMP3.EQ(DFPLAYER_EQ_NORMAL); // Configura o equalizador
     
-    // Som de introdução/abertura (Pasta 1, Arquivo 01)
+    // Som de introdução/abertura (Pasta 01, Arquivo 003.mp3 - ajuste o número se for outro)
     moduloMP3.playFolder(1, 1); 
   }
 
@@ -150,14 +150,19 @@ void loop() {
 }
 
 void executarBatalhaAleatoria() {
-  somBatalha(); 
+  // 1. Toca o áudio de chamada da batalha (Pasta 01, Arquivo 001.mp3)
+  moduloMP3.disableLoop();
+  moduloMP3.playFolder(1, 0);
 
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print(" !! HORA DA !!");
   lcd.setCursor(0, 1);
   lcd.print(" !! BATALHA !!");
-  delay(4000);
+  delay(4000); // Tempo de reprodução do 001.mp3 antes de entrar a música de fundo
+
+  // 2. Inicia a música da batalha em loop (Pasta 01, Arquivo 002.mp3)
+  somBatalha();
 
   int p1 = -1;
   int p2 = -1;
@@ -228,16 +233,12 @@ void executarBatalhaAleatoria() {
 
       // Primeiro clique trava o dado
       if (!dadoTravado) {
-
         dadoTravado = true;
-
         lcd.setCursor(0, 1);
         lcd.print("Resultado: " + String(valorD20) + "   ");
-
       } 
       // Segundo clique passa a vez
       else {
-
         dadoTravado = false;
 
         if (duelistaDaVez == p1) {
@@ -247,7 +248,6 @@ void executarBatalhaAleatoria() {
         }
 
         valorD20 = random(1, 21);
-
         lcd.clear();
       }
 
@@ -266,6 +266,10 @@ void executarBatalhaAleatoria() {
     if (digitalRead(BTN[p2]) == LOW) { perdedor = p1; break; } 
     delay(10);
   }
+
+  // --- PARA A MÚSICA DA BATALHA ---
+  moduloMP3.disableLoop();
+  moduloMP3.stop();
 
   // Desliga os indicadores dos botões
   digitalWrite(LED_BOTOES[p1], LOW);
@@ -371,7 +375,9 @@ void verificarFimDeJogo() {
 }
 
 void somBatalha() {
-  moduloMP3.playFolder(1, 0);
+  moduloMP3.playFolder(1, 2); // Toca pasta 01, arquivo 002.mp3
+  delay(150);                 // Pausa rápida para o módulo processar o comando
+  moduloMP3.enableLoop();     // Mantém o 002.mp3 repetindo enquanto durar a batalha
 }
 
 void printRetorno(uint8_t type, int value) {
